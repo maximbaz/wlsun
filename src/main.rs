@@ -136,12 +136,12 @@ fn main() {
                         .expect("Unable to initialize ALS IIO sensor"),
                 ),
                 config::Als::Time { thresholds } => Box::new(als::time::Als::new(thresholds)),
-                config::Als::Webcam { video, thresholds } => Box::new({
+                config::Als::Webcam { video, thresholds, sleep_ms } => Box::new({
                     let (webcam_tx, webcam_rx) = mpsc::channel();
                     std::thread::Builder::new()
                         .name("als-webcam".to_string())
                         .spawn(move || {
-                            als::webcam::Webcam::new(webcam_tx, video).run();
+                            als::webcam::Webcam::new(webcam_tx, video, sleep_ms).run();
                         })
                         .expect("Unable to start thread: als-webcam");
                     als::webcam::Als::new(webcam_rx, thresholds)

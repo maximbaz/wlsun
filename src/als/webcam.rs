@@ -14,15 +14,21 @@ use v4l::{Device, FourCC};
 
 const DEFAULT_LUX: u64 = 100;
 const WAITING_SLEEP_MS: u64 = 2000;
+const MIN_WAITING_SLEEP_MS: u64 = 1000;
 
 pub struct Webcam {
     webcam_tx: Sender<u64>,
     video: usize,
+    sleep_ms: u64,
 }
 
 impl Webcam {
-    pub fn new(webcam_tx: Sender<u64>, video: usize) -> Self {
-        Self { webcam_tx, video }
+    pub fn new(webcam_tx: Sender<u64>, video: usize, sleep_ms: Option<u64>) -> Self {
+        Self {
+            webcam_tx,
+            video,
+            sleep_ms: sleep_ms.filter(|&s| s >= MIN_WAITING_SLEEP_MS).unwrap_or(WAITING_SLEEP_MS),
+        }
     }
 
     pub fn run(&mut self) {
@@ -40,7 +46,7 @@ impl Webcam {
                 .expect("Unable to send new webcam lux value, channel is dead");
         };
 
-        thread::sleep(Duration::from_millis(WAITING_SLEEP_MS));
+        thread::sleep(Duration::from_millis(self.sleep_ms));
     }
 
     fn frame(&mut self) -> Result<(Vec<u8>, usize), Box<dyn Error>> {
@@ -121,6 +127,30 @@ mod tests {
         let (webcam_tx, webcam_rx) = mpsc::channel();
         let als = Als::new(webcam_rx, HashMap::default());
         (als, webcam_tx)
+    }
+
+    #[test]
+    fn test_sleep_ms_is_custom_value_when_present_in_config() -> Result<(), Box<dyn Error>> {
+        let (webcam_tx, _) = mpsc::channel();
+        let webcam = Webcam::new(webcam_tx, 0, Some(10000));
+        assert_eq!(10000, webcam.sleep_ms);
+        Ok(())
+    }
+
+    #[test]
+    fn test_sleep_ms_is_default_value_when_not_present_in_config() -> Result<(), Box<dyn Error>> {
+        let (webcam_tx, _) = mpsc::channel();
+        let webcam = Webcam::new(webcam_tx, 0, None);
+        assert_eq!(WAITING_SLEEP_MS, webcam.sleep_ms);
+        Ok(())
+    }
+
+    #[test]
+    fn test_sleep_ms_is_default_value_when_invalid_in_config() -> Result<(), Box<dyn Error>> {
+        let (webcam_tx, _) = mpsc::channel();
+        let webcam = Webcam::new(webcam_tx, 0, Some(MIN_WAITING_SLEEP_MS - 1));
+        assert_eq!(WAITING_SLEEP_MS, webcam.sleep_ms);
+        Ok(())
     }
 
     #[test]

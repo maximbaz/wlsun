@@ -102,8 +102,13 @@ fn parse() -> Result<app::Config, toml::de::Error> {
                 path,
                 thresholds: parse_als_thresholds(thresholds),
             },
-            file::Als::Webcam { video, thresholds } => app::Als::Webcam {
+            file::Als::Webcam {
                 video,
+                sleep_ms,
+                thresholds,
+            } => app::Als::Webcam {
+                video,
+                sleep_ms,
                 thresholds: parse_als_thresholds(thresholds),
             },
             file::Als::Time { thresholds } => app::Als::Time {
